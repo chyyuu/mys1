@@ -28,42 +28,61 @@
 
     <script>
         // 2. 配置 Supabase (请把下面的值换成你刚才复制的!)
-        const supabaseUrl = 'https://vnypgiqqluzvawewvqvu.supabase.co' 
-        const supabaseKey = '你的_ANON_PUBLIC_KEY' 
-        const client = supabase.createClient(supabaseUrl, supabaseKey)
+        const supabaseUrl = 'https://vnypgiqqluzvawewvqvu.supabase.co'
+        const supabaseKey = 'sb_publishable_b0YXNln2J_-LmTdQ4THHQg_hupHZFk3'
 
-        // 3. 定义：查询数据函数
-        async function fetchMessages() {
-            // 对应 SQL: SELECT * FROM messages ORDER BY created_at DESC
-            const { data, error } = await client
-                .from('messages')
-                .select('*')
-                .order('created_at', { ascending: false })
-
-            if (error) {
-                console.error('出错啦:', error)
-            } else {
-                renderList(data)
+        // 检查 supabaseKey 是否包含非 ISO-8859-1 字符（如中文占位符）
+        function isIso88591(str) {
+            for (let ch of str) {
+                if (ch.codePointAt(0) > 255) return false
             }
+            return true
         }
 
-        // 4. 定义：插入数据函数
-        async function addMessage() {
-            const input = document.getElementById('msgInput')
-            const text = input.value
-            if (!text) return
+        if (!supabaseKey || supabaseKey.includes('你的') || !isIso88591(supabaseKey)) {
+            const list = document.getElementById('msgList')
+            list.innerHTML = ''
+            const li = document.createElement('li')
+            li.style.color = 'crimson'
+            li.textContent = '错误：请在代码中将 supabaseKey 替换为你在 Supabase 项目中获取的 ANON public key（不要使用中文或占位符）。'
+            list.appendChild(li)
+            console.error('Supabase key 未设置或包含非法字符，已停止初始化客户端。')
+        } else {
+            const client = supabase.createClient(supabaseUrl, supabaseKey)
 
-            // 对应 SQL: INSERT INTO messages (content) VALUES (text)
-            const { error } = await client
-                .from('messages')
-                .insert({ content: text })
+            // 将函数挂到 window，确保在 onclick 中能访问到
+            window.fetchMessages = async function() {
+                const { data, error } = await client
+                    .from('messages')
+                    .select('*')
+                    .order('created_at', { ascending: false })
 
-            if (error) {
-                alert('发送失败: ' + error.message)
-            } else {
-                input.value = '' // 清空输入框
-                fetchMessages()  // 重新加载列表
+                if (error) {
+                    console.error('出错啦:', error)
+                } else {
+                    renderList(data)
+                }
             }
+
+            window.addMessage = async function() {
+                const input = document.getElementById('msgInput')
+                const text = input.value
+                if (!text) return
+
+                const { error } = await client
+                    .from('messages')
+                    .insert({ content: text })
+
+                if (error) {
+                    alert('发送失败: ' + error.message)
+                } else {
+                    input.value = ''
+                    window.fetchMessages()
+                }
+            }
+
+            // 页面加载时自动拉取一次数据
+            window.fetchMessages()
         }
 
         // 5. 辅助函数：把数据渲染到 HTML 上
