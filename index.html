@@ -3,14 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的 Netlify 网站</title>
+    <title>我的动态网站</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-        h1 { color: #2d3748; }
+        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        input { padding: 10px; width: 70%; }
+        button { padding: 10px; cursor: pointer; }
+        ul { list-style: none; padding: 0; }
+        li { background: #f4f4f4; margin: 5px 0; padding: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <h1>🚀 部署成功！</h1>
-    <p>这是一个通过 Netlify CLI 部署的静态网站。</p>
+    <h1>简易云端留言板</h1>
+    
+    <div>
+        <input type="text" id="msgInput" placeholder="输入一条消息...">
+        <button onclick="addMessage()">发送</button>
+    </div>
+
+    <h3>历史消息：</h3>
+    <ul id="msgList">
+        <li>正在加载数据...</li>
+    </ul>
+
+    <script>
+        // 2. 配置 Supabase (请把下面的值换成你刚才复制的!)
+        const supabaseUrl = 'https://vnypgiqqluzvawewvqvu.supabase.co' 
+        const supabaseKey = '你的_ANON_PUBLIC_KEY' 
+        const client = supabase.createClient(supabaseUrl, supabaseKey)
+
+        // 3. 定义：查询数据函数
+        async function fetchMessages() {
+            // 对应 SQL: SELECT * FROM messages ORDER BY created_at DESC
+            const { data, error } = await client
+                .from('messages')
+                .select('*')
+                .order('created_at', { ascending: false })
+
+            if (error) {
+                console.error('出错啦:', error)
+            } else {
+                renderList(data)
+            }
+        }
+
+        // 4. 定义：插入数据函数
+        async function addMessage() {
+            const input = document.getElementById('msgInput')
+            const text = input.value
+            if (!text) return
+
+            // 对应 SQL: INSERT INTO messages (content) VALUES (text)
+            const { error } = await client
+                .from('messages')
+                .insert({ content: text })
+
+            if (error) {
+                alert('发送失败: ' + error.message)
+            } else {
+                input.value = '' // 清空输入框
+                fetchMessages()  // 重新加载列表
+            }
+        }
+
+        // 5. 辅助函数：把数据渲染到 HTML 上
+        function renderList(messages) {
+            const list = document.getElementById('msgList')
+            list.innerHTML = '' // 清空当前列表
+            messages.forEach(msg => {
+                const li = document.createElement('li')
+                li.textContent = msg.content + ' (ID: ' + msg.id + ')'
+                list.appendChild(li)
+            })
+        }
+
+        // 页面加载时自动拉取一次数据
+        fetchMessages()
+    </script>
 </body>
 </html>
